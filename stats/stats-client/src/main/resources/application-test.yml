@@ -1,0 +1,7 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+
+stats-server:
+  url: http://localhost:8080

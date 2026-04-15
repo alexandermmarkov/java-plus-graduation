@@ -1,11 +1,9 @@
-stats-server:
-  url: ${CLIENT_URL}
 server:
-  port: 8080
+  port: 0
 
 spring:
   application:
-    name: main
+    name: main-service
 
   mvc:
     format:
@@ -24,9 +22,9 @@ spring:
 
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5434/main-db}
+    username: ${SPRING_DATASOURCE_USERNAME:admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:100}
   jpa:
     hibernate:
       ddl-auto: none
@@ -37,4 +35,5 @@ logging:
   level:
     org:
       zalando:
-        logbook: trace
+        logbook: DEBUG
+    ru.practicum.ewm.client: DEBUG

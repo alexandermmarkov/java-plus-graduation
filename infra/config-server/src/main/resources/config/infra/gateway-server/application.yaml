@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  cloud:
+    gateway:
+      discovery.locator.enabled: false
+      routes:
+        - id: main_service_admin
+          uri: lb://main-service
+          predicates:
+            - Path=/admin/**
+        - id: main_service_categories
+          uri: lb://main-service
+          predicates:
+            - Path=/categories/**
+        - id: main_service_compilations
+          uri: lb://main-service
+          predicates:
+            - Path=/compilations/**
+        - id: main_service_events
+          uri: lb://main-service
+          predicates:
+            - Path=/events/**
+        - id: main_service_users
+          uri: lb://main-service
+          predicates:
+            - Path=/users/**
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG

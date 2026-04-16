@@ -6,27 +6,39 @@ spring:
     gateway:
       discovery.locator.enabled: false
       routes:
-        - id: main_service_admin
-          uri: lb://main-service
+        - id: user-service_route
+          uri: lb://user-service
           predicates:
-            - Path=/admin/**
-        - id: main_service_categories
-          uri: lb://main-service
+            - Path=/admin/users/**
+        - id: request-service_route
+          uri: lb://request-service
           predicates:
-            - Path=/categories/**
-        - id: main_service_compilations
-          uri: lb://main-service
+            - Path=/users/{userId}/requests,/users/{userId}/requests/{requestId}/cancel,/users/{userId}/events/{eventId}/requests
+        - id: comment-service_route
+          uri: lb://comment-service
           predicates:
-            - Path=/compilations/**
-        - id: main_service_events
-          uri: lb://main-service
+            - Path=/admin/comments/**,/comments/**
+        - id: event_service_categories
+          uri: lb://event-service
           predicates:
-            - Path=/events/**
-        - id: main_service_users
-          uri: lb://main-service
+            - Path=/admin/categories/**,/categories/**
+        - id: event_service_compilations
+          uri: lb://event-service
           predicates:
-            - Path=/users/**
+            - Path=/admin/compilations/**,/compilations/**
+        - id: event_service_events
+          uri: lb://event-service
+          predicates:
+            - Path=/admin/events/**,/events/**,/users/{userId}/events,/users/{userId}/events/{eventId}
+
+        - id: default_route
+          uri: http://localhost:8080
+          predicates:
+            - Path=/**
+          filters:
+            - SetStatus=404
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway: TRACE
+    reactor.netty.http.client: DEBUG

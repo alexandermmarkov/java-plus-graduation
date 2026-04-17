@@ -71,8 +71,6 @@ public class CommentService {
                 .build();
     }
 
-
-    @Transactional(readOnly = true)
     public List<Comment> getCommentsForEvents(List<Long> eventIds) {
         return commentRepository.findByEventIdIn(eventIds);
     }
@@ -84,7 +82,6 @@ public class CommentService {
         return Objects.equals(authorId, userId);
     }
 
-    @Transactional(readOnly = true)
     public List<Comment> findCommentsByEvent(Long eventId) {
         return commentRepository.findCommentsByEvent(eventId).orElse(List.of());
     }

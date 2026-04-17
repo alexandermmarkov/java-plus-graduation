@@ -8,12 +8,43 @@ services:
       - POSTGRES_PASSWORD=100
       - POSTGRES_USER=admin
       - POSTGRES_DB=stats-db
-  main-db:
+
+  event-db:
     image: postgres:16.1
-    container_name: main-db
+    container_name: event-db
     ports:
       - "5434:5432"
     environment:
       - POSTGRES_PASSWORD=100
       - POSTGRES_USER=admin
-      - POSTGRES_DB=main-db
+      - POSTGRES_DB=event-db
+
+  user-db:
+    image: postgres:16.1
+    container_name: user-db
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRES_PASSWORD=100
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=user-db
+
+  request-db:
+    image: postgres:16.1
+    container_name: request-db
+    ports:
+      - "5436:5432"
+    environment:
+      - POSTGRES_PASSWORD=100
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=request-db
+
+  comment-db:
+    image: postgres:16.1
+    container_name: comment-db
+    ports:
+      - "5437:5432"
+    environment:
+      - POSTGRES_PASSWORD=100
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=comment-db

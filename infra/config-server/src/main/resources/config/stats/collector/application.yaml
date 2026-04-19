@@ -1,0 +1,18 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: collector
+
+kafka:
+  collector:
+    bootstrap-servers: localhost:9092
+    user-action-topic: stats.user-actions.v1
+    key-serializer: org.apache.kafka.common.serialization.LongSerializer
+    value-serializer: ru.practicum.ewm.kafka.serializer.GeneralAvroSerializer
+
+grpc:
+  server:
+    port: 0
+

@@ -6,8 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.practicum.ewm.constant.EventState;
 import ru.practicum.ewm.dto.CategoryDto;
-import ru.practicum.ewm.dto.user.UserDto;
 import ru.practicum.ewm.dto.comment.CommentDto;
+import ru.practicum.ewm.dto.user.UserDto;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,7 +48,7 @@ public class EventFullDto {
 
     private String title;
 
-    private Long views;
+    private Double rating;
 
     private List<CommentDto> comments;
 }

@@ -34,4 +34,10 @@ public class RequestController {
         return requestService.getConfirmedRequestsForEvents(eventIds);
     }
 
+    @RequestMapping(value = "/participation/{userId}/{eventId}")
+    Boolean checkUserParticipation(@PathVariable Long userId, @PathVariable Long eventId) {
+        log.info("Проверить регистрацию пользователя {} на мероприятие {}", userId, eventId);
+        return requestService.checkUserParticipation(userId, eventId);
+    }
+
 }

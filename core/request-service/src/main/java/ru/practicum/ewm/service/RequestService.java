@@ -198,4 +198,8 @@ public class RequestService {
                 ));
     }
 
+    public Boolean checkUserParticipation(Long requesterId, Long eventId) {
+        return repository.existsByRequesterIdAndEventIdAndStatus(requesterId, eventId, RequestStatus.CONFIRMED);
+    }
+
 }

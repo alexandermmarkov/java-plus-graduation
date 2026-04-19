@@ -7,7 +7,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import ru.practicum.ewm.client.CollectorClient;
 import ru.practicum.ewm.client.CommentClient;
+import ru.practicum.ewm.client.RecommendationsClient;
 import ru.practicum.ewm.client.RequestClient;
 import ru.practicum.ewm.client.UserClient;
 import ru.practicum.ewm.constant.EventState;
@@ -25,8 +27,9 @@ import ru.practicum.ewm.filter.EventsFilter;
 import ru.practicum.ewm.mapper.EventMapper;
 import ru.practicum.ewm.mapper.EventMapperDep;
 import ru.practicum.ewm.model.Event;
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
+import ru.practicum.ewm.stats.proto.RecommendedEventProto;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +45,10 @@ public class EventFacadeService {
     private final RequestClient requestClient;
     private final CommentClient commentClient;
 
-    private final StatsService statsService;
     private final EventService eventService;
+
+    private final CollectorClient collectorClient;
+    private final RecommendationsClient recommendationsClient;
 
 
     public EventFullDto create(EventNewDto dto, Long userId) throws ConditionsException {
@@ -60,11 +65,12 @@ public class EventFacadeService {
         UserDto userDto = getUserOrThrow(userId);
         Event event = eventService.update(userId, eventId, dto, userDto);
         Long calcConfirmedRequests = getConfirmedRequests(eventId);
-        Long calcView = statsService.getViewsForEvent(eventId);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
         EventFullDto dtoResult = mapper.toDto(event);
         return dtoResult.toBuilder()
                 .confirmedRequests(calcConfirmedRequests)
-                .views(calcView)
+                .rating(ratings.get(event.getId()))
                 .comments(getComments(eventId))
                 .initiator(userDto)
                 .build();
@@ -76,11 +82,12 @@ public class EventFacadeService {
         Long userId = event.getInitiatorId();
         UserDto userDto = getUserOrThrow(userId);
         Long calcConfirmedRequests = getConfirmedRequests(eventId);
-        Long calcView = statsService.getViewsForEvent(eventId);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
         EventFullDto dtoResult = mapper.toDto(event);
         return dtoResult.toBuilder()
                 .confirmedRequests(calcConfirmedRequests)
-                .views(calcView)
+                .rating(ratings.get(event.getId()))
                 .comments(getComments(eventId))
                 .initiator(userDto)
                 .build();
@@ -88,42 +95,38 @@ public class EventFacadeService {
 
     public EventFullDto findByUserIdAndEventId(Long userId, Long eventId) throws ConditionsException {
         UserDto userDto = getUserOrThrow(userId);
+        log.info("Получено событие {} пользователя {}", eventId, userId);
         Long calcConfirmedRequests = getConfirmedRequests(eventId);
         Event event = eventService.getEvent(eventId, userId);
-        Long calcView = statsService.getViewsForEvent(eventId);
-        log.info("Получено событие {} пользователя {}", eventId, userId);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
 
         EventFullDto dtoResult = mapper.toDto(event);
         return dtoResult.toBuilder()
                 .confirmedRequests(calcConfirmedRequests)
-                .views(calcView)
+                .rating(ratings.get(event.getId()))
                 .comments(getComments(eventId))
                 .initiator(userDto)
                 .build();
     }
 
-    public EventFullDto findPublicEventById(Long eventId, HttpServletRequest request) {
+    public EventFullDto findPublicEventById(Long eventId, Long userId) {
         Event event = eventService.getEvent(eventId, EventState.PUBLISHED);
         Long calcConfirmedRequests = getConfirmedRequests(eventId); // обращение к requestClient
-        Long calcView = statsService.getViewsForEvent(eventId);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
         UserDto userDto;
         try {
             userDto = getUserOrThrow(event.getInitiatorId());
         } catch (ConditionsException e) {
             throw new RuntimeException(e);
         }
-        statsService.saveHit(
-                "event-service",
-                request.getRequestURI(),
-                request.getRemoteAddr(),
-                LocalDateTime.now()
-        );
-
+        collectorClient.collectUserAction(userId, eventId, ActionTypeProto.ACTION_VIEW);
         log.info("Получено публичное событие {}", eventId);
         EventFullDto dtoResult = mapper.toDto(event);
         return dtoResult.toBuilder()
                 .confirmedRequests(calcConfirmedRequests)
-                .views(calcView)
+                .rating(ratings.get(event.getId()))
                 .comments(getComments(eventId))
                 .initiator(userDto)
                 .build();
@@ -131,9 +134,11 @@ public class EventFacadeService {
 
     public EventFullDto getEventById(Long eventId) {
         Event event = eventService.getEvent(eventId);
-
+        List<Long> eventIds = List.of(eventId);
         Long calcConfirmedRequests = getConfirmedRequests(eventId);
-        Long calcView = statsService.getViewsForEvent(eventId);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(List.of(eventId));
+
         UserDto userDto;
         try {
             userDto = getUserOrThrow(event.getInitiatorId());
@@ -144,7 +149,7 @@ public class EventFacadeService {
         EventFullDto dtoResult = mapper.toDto(event);
         return dtoResult.toBuilder()
                 .confirmedRequests(calcConfirmedRequests)
-                .views(calcView)
+                .rating(ratings.get(event.getId()))
                 .comments(getComments(eventId))
                 .initiator(userDto)
                 .build();
@@ -156,15 +161,56 @@ public class EventFacadeService {
         }
         UserDto userDto = getUserOrThrow(userId);
         List<Event> events = eventService.findByUserId(userId, pageable);
+        List<Long> eventIds = events.stream()
+                .map(Event::getId).distinct().toList();
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(eventIds);
 
         return events.stream()
                 .map(event -> EventMapperDep.eventToShortDto(
                         event,
                         getConfirmedRequests(event.getId()),
-                        statsService.getViewsForEvent(event.getId()),
+                        ratings.get(event.getId()),
                         userDto
                 ))
                 .toList();
+    }
+
+    public void addLikeToEvent(Long userId, Long eventId) throws ConditionsException {
+        if (!userIsExist(userId)) {
+            throw new NotFoundException("Пользователь %s не найден".formatted(userId));
+        }
+        eventService.getEvent(eventId);
+        if (requestClient.checkUserParticipation(userId, eventId)) {
+            collectorClient.collectUserAction(userId, eventId, ActionTypeProto.ACTION_LIKE);
+        } else {
+            throw new ConditionsException("Пользователь %s не участвовал в мероприятии %s".formatted(userId, eventId));
+        }
+    }
+
+    public List<EventShortDto> getRecommendationsForUser(Long userId, Integer maxResults) throws ConditionsException {
+        UserDto userDto = getUserOrThrow(userId);
+        List<RecommendedEventProto> protoList = recommendationsClient
+                .getRecommendationsForUser(userId, maxResults)
+                .toList();
+        if (protoList.isEmpty()) {
+            return List.of();
+        }
+        //получить список eventIds и достать все эти события
+        List<Long> eventIds = protoList.stream().map(RecommendedEventProto::getEventId).toList();
+        List<Event> eventList = eventService.findEventsByEventIds(eventIds);
+        Map<Long, Double> ratings = getRatings(eventIds);
+
+        return eventList.stream()
+                .map(event -> EventMapperDep.eventToShortDto(
+                                event,
+                                getConfirmedRequests(event.getId()),
+                                ratings.get(event.getId()),
+                                userDto != null ? userDto : fallbackUser()
+                        )
+                )
+                .toList();
+
     }
 
     public List<EventShortDto> findPublicEventsWithFilter(
@@ -172,19 +218,16 @@ public class EventFacadeService {
             Pageable pageable,
             HttpServletRequest request) {
 
-        // Сохраняем хит в статистике
-        statsService.saveHit(
-                "event-service",
-                request.getRequestURI(),
-                request.getRemoteAddr(),
-                LocalDateTime.now()
-        );
-
         // Получаем события из БД — через транзакционный сервис
         Page<Event> eventsPage = eventService.findEventsWithFilter(filter, pageable, false);
         if (eventsPage.isEmpty()) {
             return Collections.emptyList();
         }
+
+        List<Long> eventIds = eventsPage.stream()
+                .map(Event::getId).distinct().toList();
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(eventIds);
 
         // Собираем все ID инициаторов
         List<Long> initiatorIds = eventsPage.stream()
@@ -195,29 +238,20 @@ public class EventFacadeService {
         Map<Long, UserDto> userMap = users.stream()
                 .collect(Collectors.toMap(UserDto::getId, Function.identity()));
 
-        // Получаем просмотры
-        List<String> uris = eventsPage.stream()
-                .map(e -> "/events/" + e.getId())
-                .toList();
-        Map<String, Long> viewsUriMap = statsService.getViewsForUris(uris);
-
         // Преобразуем в DTO
         return eventsPage.stream()
                 .map(event -> {
-                    String uri = "/events/" + event.getId();
-                    Long views = viewsUriMap.getOrDefault(uri, 0L);
                     Long confirmedRequests = getConfirmedRequests(event.getId());
                     UserDto userDto = userMap.get(event.getInitiatorId());
-
+                    Double rating = ratings.get(event.getId());
                     return EventMapperDep.eventToShortDto(
                             event,
                             confirmedRequests,
-                            views,
+                            rating,
                             userDto != null ? userDto : fallbackUser()
                     );
                 })
                 .toList();
-
     }
 
     public List<EventFullDto> findAdminEventsWithFilter(EventsFilter filter, Pageable pageable) {
@@ -239,11 +273,8 @@ public class EventFacadeService {
         Map<Long, UserDto> userMap = users.stream()
                 .collect(Collectors.toMap(UserDto::getId, Function.identity()));
 
-        // Получаем просмотры
-        List<String> uris = eventsPage.stream()
-                .map(e -> "/events/" + e.getId())
-                .toList();
-        Map<String, Long> viewsUriMap = statsService.getViewsForUris(uris);
+        // получаем рейтинги
+        Map<Long, Double> ratings = getRatings(eventIds);
 
         Map<Long, Long> confirmedRequestsMap = getConfirmedRequestsForEvents(eventIds); // обращение к requestClient
         Map<Long, List<CommentDto>> commentsMap = getCommentsForEvents(eventIds); // обращение к commentClient
@@ -251,16 +282,14 @@ public class EventFacadeService {
         // Преобразуем в DTO
         return eventsPage.stream()
                 .map(event -> {
-                    String uri = "/events/" + event.getId();
-                    Long views = viewsUriMap.getOrDefault(uri, 0L);
                     UserDto userDto = userMap.getOrDefault(event.getInitiatorId(), fallbackUser());
                     Long confirmedRequests = confirmedRequestsMap.getOrDefault(event.getId(), 0L);
                     List<CommentDto> comments = commentsMap.getOrDefault(event.getId(), Collections.emptyList());
-
+                    Double rating = ratings.get(event.getId());
                     return EventMapperDep.eventToFullDto(
                             event,
                             confirmedRequests,
-                            views,
+                            rating,
                             comments,
                             userDto
                     );
@@ -313,5 +342,14 @@ public class EventFacadeService {
         } catch (FeignException.NotFound ex) {
             return false;
         }
+    }
+
+    private Map<Long, Double> getRatings(List<Long> eventIds) {
+        return recommendationsClient.getInteractionsCount(eventIds)
+                .collect(Collectors.toMap(
+                        RecommendedEventProto::getEventId,
+                        RecommendedEventProto::getScore,
+                        (a, b) -> a
+                ));
     }
 }

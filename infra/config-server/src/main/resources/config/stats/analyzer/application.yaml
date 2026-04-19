@@ -1,0 +1,75 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: analyzer
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5438/recommendation_db}
+    username: ${SPRING_DATASOURCE_USERNAME:admin}
+    password: ${SPRING_DATASOURCE_PASSWORD:100}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  sql:
+    init:
+      mode: always
+
+kafka:
+  analyzer:
+    bootstrap-servers: localhost:9092
+    consumers:
+      user-action:
+        topic: stats.user-actions.v1
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: ru.practicum.ewm.kafka.serializer.UserActionDeserializer
+        group-id: analyzer-user-group
+        client-id: consumer-user-1
+        properties:
+          fetch.min.bytes: 1
+          max.poll.records: 100
+          enable.auto.commit: false
+          fetch.max.wait.ms: 1000
+          max.partition.fetch.bytes: 1048576
+      event-similarity:
+        topic: stats.events-similarity.v1
+        key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value-deserializer: ru.practicum.ewm.kafka.serializer.EventSimilarityDeserializer
+        group-id: analyzer-event-group
+        client-id: consumer-event-1
+        properties:
+          fetch.min.bytes: 1
+          max.poll.records: 100
+          enable.auto.commit: false
+          fetch.max.wait.ms: 1000
+          max.partition.fetch.bytes: 1048576
+
+user-action:
+  view: 0.4
+  register: 0.8
+  like: 1.0
+
+grpc:
+  server:
+    port: 0
+
+logging:
+  level:
+    com.netflix.discovery: DEBUG
+    com.netflix.eureka: DEBUG
+    org.springframework.cloud.netflix.eureka: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,metrics,env,beans,mappings"
+  endpoint:
+    health:
+      show-details: always

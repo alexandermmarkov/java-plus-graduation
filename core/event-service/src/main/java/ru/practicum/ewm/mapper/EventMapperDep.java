@@ -1,10 +1,10 @@
 package ru.practicum.ewm.mapper;
 
 import lombok.experimental.UtilityClass;
-import ru.practicum.ewm.dto.user.UserDto;
 import ru.practicum.ewm.dto.comment.CommentDto;
 import ru.practicum.ewm.dto.event.EventFullDto;
 import ru.practicum.ewm.dto.event.EventShortDto;
+import ru.practicum.ewm.dto.user.UserDto;
 import ru.practicum.ewm.model.Event;
 
 import java.util.List;
@@ -14,7 +14,7 @@ public class EventMapperDep {
     private final CategoryMapper categoryMapper = new CategoryMapperImpl();
     private final LocationMapper locationMapper = new LocationMapperImpl();
 
-    public EventFullDto eventToFullDto(Event event, Long confirmedRequests, Long views, List<CommentDto> comments, UserDto userDto) {
+    public EventFullDto eventToFullDto(Event event, Long confirmedRequests, Double rating, List<CommentDto> comments, UserDto userDto) {
         return EventFullDto.builder()
                 .id(event.getId())
                 .annotation(event.getAnnotation())
@@ -31,12 +31,12 @@ public class EventMapperDep {
                 .requestModeration(event.getRequestModeration())
                 .state(event.getState())
                 .title(event.getTitle())
-                .views(views)
+                .rating(rating)
                 .comments(comments)
                 .build();
     }
 
-    public EventShortDto eventToShortDto(Event event, Long confirmedRequests, Long views, UserDto userDto) {
+    public EventShortDto eventToShortDto(Event event, Long confirmedRequests, Double rating, UserDto userDto) {
         return EventShortDto.builder()
                 .id(event.getId())
                 .annotation(event.getAnnotation())
@@ -46,7 +46,7 @@ public class EventMapperDep {
                 .initiator(userDto)
                 .paid(event.getPaid())
                 .title(event.getTitle())
-                .views(views)
+                .rating(rating)
                 .build();
     }
 

@@ -138,6 +138,11 @@ public class EventService {
         return repository.findAll(predicate, pageable);
     }
 
+    @Transactional(readOnly = true)
+    public List<Event> findEventsByEventIds(List<Long> eventIds) {
+        return repository.findEventsByEventIds(eventIds);
+    }
+
 
     private Category getCategoryOrThrow(Long catId) throws ConditionsException {
         return categoryRepository.findById(catId)

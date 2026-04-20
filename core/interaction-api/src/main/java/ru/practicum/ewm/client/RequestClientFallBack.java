@@ -23,4 +23,10 @@ public class RequestClientFallBack implements RequestClient {
         log.info("вызван RequestClientFallBack getConfirmedRequestsForEvents");
         return new HashMap<>();
     }
+
+    @Override
+    public Boolean checkUserParticipation(Long userId, Long eventId) {
+        log.info("вызван RequestClientFallBack checkUserParticipation");
+        return false;
+    }
 }

@@ -4,8 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import ru.practicum.ewm.dto.user.UserDto;
 import ru.practicum.ewm.dto.CategoryDto;
+import ru.practicum.ewm.dto.user.UserDto;
 
 import java.time.LocalDateTime;
 
@@ -30,5 +30,5 @@ public class EventShortDto {
 
     private String title;
 
-    private Long views;
+    private Double rating;
 }

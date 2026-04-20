@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.ewm.client.CollectorClient;
 import ru.practicum.ewm.client.EventClient;
 import ru.practicum.ewm.client.UserClient;
 import ru.practicum.ewm.constant.EventState;
@@ -17,6 +18,7 @@ import ru.practicum.ewm.dto.user.UserDto;
 import ru.practicum.ewm.exception.ConditionsException;
 import ru.practicum.ewm.exception.ConflictException;
 import ru.practicum.ewm.exception.NotFoundException;
+import ru.practicum.ewm.stats.proto.ActionTypeProto;
 
 import java.util.List;
 import java.util.Objects;
@@ -29,6 +31,7 @@ public class RequestFacadeService {
     private final UserClient userClient;
     private final EventClient eventClient;
     private final RequestService requestService;
+    private final CollectorClient collectorClient;
 
     public ParticipationRequestDto create(Long userId, Long eventId) throws ConditionsException, ConflictException {
         log.info("Создать запрос, userId = {}, eventId = {} ", userId, eventId);
@@ -40,7 +43,10 @@ public class RequestFacadeService {
         if (eventFullDto.getState() != EventState.PUBLISHED) {
             throw new ConflictException("Подать заявку можно только на опубликованные мероприятия");
         }
-        return requestService.create(userId, eventId, requester, eventFullDto);
+        ParticipationRequestDto requestDto = requestService.create(userId, eventId, requester, eventFullDto);
+        collectorClient.collectUserAction(userId, eventId, ActionTypeProto.ACTION_REGISTER);
+
+        return requestDto;
     }
 
     public List<ParticipationRequestDto> getRequestsByUser(Long userId) {

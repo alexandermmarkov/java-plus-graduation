@@ -74,3 +74,11 @@ logging:
       zalando:
         logbook: DEBUG
     ru.practicum.ewm.client: DEBUG
+
+grpc:
+  client:
+    collector:
+      address: 'discovery:///collector'
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+      negotiationType: plaintext
